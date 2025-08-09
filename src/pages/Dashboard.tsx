@@ -29,9 +29,9 @@ const Dashboard = () => {
   ];
 
   const programs = [
-    { name: "Clinical Research", progress: 65, quiz: 80, status: "In Progress" },
-    { name: "Clinical Data Management", progress: 0, quiz: 0, status: "Locked" },
-    { name: "Regulatory Affairs", progress: 0, quiz: 0, status: "Locked" },
+    { name: "Clinical Research", progress: 65, quiz: 80, status: "In progress" },
+    { name: "Clinical Data Management", progress: 0, quiz: 0, status: "join" },
+    { name: "Regulatory Affairs", progress: 0, quiz: 0, status: "join" },
     { name: "Quality Assurance", progress: 0, quiz: 0, status: "start" },
   ];
 
@@ -114,7 +114,7 @@ const Dashboard = () => {
     // Quality Assurance — special route
     if (program.name === "Quality Assurance") {
       if (program.status === "start" || program.status === "In Progress") {
-        navigate(`/course/qaqc-lesson1`); // now goes to course description
+        navigate(`/course/Quality-Assurance-Quality-Control`); // now goes to course description
       } else {
         toast({
           title: "Program Locked",

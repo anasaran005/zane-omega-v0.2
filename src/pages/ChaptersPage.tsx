@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import Papa from "papaparse";
-
+import { Button } from "@/components/ui/button";
 /* Google Sheet CSV (published) */
 const SHEET_URL =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vTye6Ry0sBC0YGaUhiZRw_rlAZWvZKewHEm3CRYNobgX0qfThH2722xmPZcL_RYd6w5E5c0wBaEALuO/pub?output=csv";
@@ -169,7 +169,7 @@ export default function ChaptersPage() {
   }, [routeCourseId, normalizedRouteId]);
 
   const handleChapterClick = (chapterId: string) => {
-    navigate(`/learning/${chapterId}`);
+    navigate(`/lessons/${chapterId}`);
   };
 
   return (
@@ -181,7 +181,12 @@ export default function ChaptersPage() {
         — Normalized: <span className="text-yellow-300">{normalizedRouteId || "(empty)"}</span>{" "}
         — Raw rows: <span className="text-yellow-300">{rawRowsCount}</span>
       </p>
-
+      <div className="flex gap-2">
+            <Button 
+            variant="outline" onClick={() => navigate(`/course/${routeCourseId}`)}>
+              Back
+            </Button>
+          </div>
       {loading && (
         <div className="flex justify-center items-center py-20">
           <div className="text-gray-300">Loading chapters…</div>

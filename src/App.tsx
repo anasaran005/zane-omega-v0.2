@@ -13,6 +13,11 @@ import QAQCLesson1 from "./pages/qaqclesson1";
 import LearningDynamic from "./pages/LearningDynamic";
 import CourseDescription from "./pages/CourseDescription";
 import ChaptersPage from "./pages/ChaptersPage";
+import TopicsPage from "./pages/TopicsPage";
+import LearningPage from "./LearningPage";
+import LessonsPage from "./pages/LessonsPage";
+
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -27,10 +32,17 @@ const App = () => (
           <Route path="/learning/clinical-research" element={<Learning />} />
           <Route path="/shift" element={<ShiftMode />} />
           <Route path="/review" element={<Review />} />
+          <Route path="/topics/:lessonId" element={<TopicsPage />} />
+          <Route path="/learning/:topicId" element={<LearningPage />} />
+          <Route path="/lessons/:chapterId" element={<LessonsPage />} />
+          <Route path="/topics/:lessonId" element={<TopicsPage />} />
+          
+
+
           // ...
           <Route path="/learning/:courseId" element={<LearningDynamic />} />
           // or for static:
-          <Route path="/learning/qaqc-lesson1" element={<LearningDynamic />} /> 
+          <Route path="/learning/Quality-Assurance-Quality-Control" element={<LearningDynamic />} /> 
           <Route path="/course/:courseId" element={<CourseDescription />} />
           <Route path="/course/:courseId/chapters" element={<ChaptersPage />} />
 

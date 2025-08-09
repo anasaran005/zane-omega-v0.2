@@ -88,7 +88,14 @@ const CourseDescription: React.FC = () => {
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       {/* Course Title */}
       <h1 className="text-3xl font-bold">{course.title}</h1>
-
+      <div className="flex gap-2">
+            <Button 
+            variant="outline"
+             onClick={() => navigate("/dashboard")}
+             >
+              Back
+            </Button>
+          </div>
       {/* Course Image */}
       {course.imageUrl && (
         <img
