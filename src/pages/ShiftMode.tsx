@@ -1,395 +1,211 @@
-import { useState } from "react";
+// src/pages/ShiftMode.tsx
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
-import { useNavigate } from "react-router-dom";
+import { CheckCircle, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Database, Code, FileText, Upload, CheckCircle, Star } from "lucide-react";
 
-const ShiftMode = () => {
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  
-  const [feasibilityFormSaved, setFeasibilityFormSaved] = useState(false);
-  const [siteEvaluated, setSiteEvaluated] = useState(false);
-  const [checklistSubmitted, setChecklistSubmitted] = useState(false);
-  const [pitchUploaded, setPitchUploaded] = useState(false);
-  const [selectedCriteria, setSelectedCriteria] = useState<string[]>([]);
-  const [xpEarned, setXpEarned] = useState(0);
+/**
+ * Paste your tasks CSV url here (same as in LearningDynamic)
+ */
+const CSV_TASKS_URL =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vTGAW8da-au-iHwYIVygsJ94KjqWunl4mvr58Q11AJIhXwT4UNyKYjSAzLR1Jom2LRfc4A3rfhXzDDs/pub?output=csv";
 
-  const siteData = {
-    siteId: "SITE001",
-    investigatorName: "Dr. Sarah Johnson",
-    siteName: "Metro Medical Center",
-    patientPopulation: "Oncology patients",
-    trialPhase: "Phase 2",
-    indication: "Lung Cancer",
-    country: "United States",
-    enrollmentTarget: "25 patients"
-  };
-
-  const feasibilityCriteria = [
-    { criterion: "Adequate patient population", code: "FEA001", type: "Population" },
-    { criterion: "Qualified investigator", code: "FEA002", type: "Personnel" },
-    { criterion: "Proper facilities", code: "FEA003", type: "Infrastructure" },
-    { criterion: "Regulatory compliance", code: "FEA004", type: "Compliance" }
-  ];
-
-  const allTasksCompleted = feasibilityFormSaved && siteEvaluated && checklistSubmitted && pitchUploaded;
-  const completedTasks = [feasibilityFormSaved, siteEvaluated, checklistSubmitted, pitchUploaded].filter(Boolean).length;
-
-  const handleSaveFeasibilityForm = () => {
-    setFeasibilityFormSaved(true);
-    setXpEarned(prev => prev + 150);
-    toast({
-      title: "✅ 150 XP Earned",
-      description: "Site feasibility form saved successfully!",
+/* small CSV parser (same as LearningDynamic) */
+function parseCsv(text: string) {
+  const rows: string[][] = [];
+  const lines = text.split(/\r?\n/);
+  for (const line of lines) {
+    if (line.trim() === "") continue;
+    const matches = line.match(/("([^"]|"")*"|[^,]*)(,|$)/g);
+    if (!matches) continue;
+    const cols = matches.map((m) => {
+      let cell = m.replace(/,$/, "");
+      cell = cell.trim();
+      if (cell.startsWith('"') && cell.endsWith('"')) {
+        cell = cell.slice(1, -1).replace(/""/g, '"');
+      }
+      return cell;
     });
-  };
+    rows.push(cols);
+  }
+  return rows;
+}
 
-  const handleSelectCriteria = (code: string, criterion: string) => {
-    if (!selectedCriteria.includes(code)) {
-      setSelectedCriteria([...selectedCriteria, `${criterion} | Code: ${code}`]);
+/* normalize header to camelCase (same logic as LearningDynamic) */
+function headerToCamel(h: string) {
+  return h
+    .trim()
+    .replace(/\s+/g, " ")
+    .split(" ")
+    .map((part, i) => {
+      const clean = part.replace(/[^a-zA-Z0-9]/g, "");
+      return i === 0 ? clean.toLowerCase() : clean[0].toUpperCase() + clean.slice(1).toLowerCase();
+    })
+    .join("");
+}
+
+export default function ShiftMode() {
+  const toast = useToast().toast;
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const params = new URLSearchParams(location.search);
+  const courseId = params.get("courseId") || "";
+  const taskIdParam = params.get("taskId") || "";
+
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [task, setTask] = useState<any | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(CSV_TASKS_URL)
+      .then((r) => r.text())
+      .then((csv) => {
+        const rows = parseCsv(csv);
+        if (rows.length === 0) {
+          setTasks([]);
+          setLoading(false);
+          return;
+        }
+        const headers = rows.shift()!.map((h) => headerToCamel(h || ""));
+        const items = rows.map((row) => {
+          const obj: Record<string, string> = {};
+          row.forEach((cell, i) => {
+            obj[headers[i] || `col${i}`] = cell ?? "";
+          });
+          return obj;
+        });
+        // filter by courseId
+        const courseTasks = items.filter(
+          (it) => String((it.courseId ?? it.courseid ?? it.course) || "") === String(courseId)
+        ).map(it => ({
+          id: it.id ?? it.taskId ?? String(Math.random()),
+          title: it.title ?? "",
+          description: it.description ?? "",
+          type: it.type ?? ""
+        }));
+        setTasks(courseTasks);
+
+        // if a specific taskId provided, select it
+        if (taskIdParam) {
+          const found = courseTasks.find((t) => String(t.id) === String(taskIdParam));
+          if (found) setTask(found);
+        }
+        setLoading(false);
+      })
+      .catch((e) => {
+        console.error("ShiftMode fetch tasks error", e);
+        setLoading(false);
+      });
+  }, [courseId, taskIdParam]);
+
+  // get/save progress in same localStorage key used by LearningDynamic
+  const storageKey = `lms_progress_${courseId}`;
+
+  function readProgress() {
+    try {
+      return JSON.parse(localStorage.getItem(storageKey) || "{}");
+    } catch {
+      return {};
     }
-  };
+  }
+  function writeProgress(obj: any) {
+    localStorage.setItem(storageKey, JSON.stringify(obj));
+  }
 
-  const handleSubmitEvaluation = () => {
-    if (selectedCriteria.length > 0) {
-      setSiteEvaluated(true);
-      setXpEarned(prev => prev + 200);
+  const markTaskComplete = (taskIdToComplete: string) => {
+    const progress = readProgress();
+    const completed: string[] = progress.completedTasks || [];
+    if (!completed.includes(taskIdToComplete)) {
+      const next = [...completed, taskIdToComplete];
+      progress.completedTasks = next;
+      writeProgress(progress);
       toast({
-        title: "✅ 200 XP Earned",
-        description: "Site evaluation submitted successfully!",
+        title: "✅ Task completed",
+        description: "Task marked complete and synced to course progress.",
+      });
+      // update local state
+      setTasks((prev) => prev.map((t) => (t.id === taskIdToComplete ? { ...t } : t)));
+      // go back to course page so user can see updated progress
+      setTimeout(() => navigate(`/learning/${encodeURIComponent(courseId)}`), 800);
+    } else {
+      toast({
+        title: "Already completed",
+        description: "This task is already marked complete.",
       });
     }
   };
 
-  const handleSubmitChecklist = () => {
-    setChecklistSubmitted(true);
-    setXpEarned(prev => prev + 175);
-    toast({
-      title: "✅ 175 XP Earned",
-      description: "Trial setup checklist submitted!",
-    });
-  };
+  if (loading) return <div className="p-6">Loading workspace…</div>;
 
-  const handleUploadPitch = () => {
-    setPitchUploaded(true);
-    setXpEarned(prev => prev + 225);
-    toast({
-      title: "✅ 225 XP Earned",
-      description: "Site selection pitch uploaded successfully!",
-    });
-  };
-
-  const handleCompleteShift = () => {
-    toast({
-      title: "🎉 Shift Completed!",
-      description: "All tasks submitted. Awaiting mentor review. Total XP earned: " + xpEarned,
-    });
-    setTimeout(() => {
-      navigate("/review");
-    }, 2000);
-  };
-
-  return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-6 py-4">
+  // if a single task was opened
+  if (task) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-3xl mx-auto space-y-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold">Clinical Research Simulation</h1>
-                <p className="text-muted-foreground">Complete real-world clinical research tasks</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <Badge variant="secondary">XP Earned: {xpEarned}</Badge>
-              <Badge variant={allTasksCompleted ? "default" : "outline"}>
-                {completedTasks}/4 Tasks
-              </Badge>
-            </div>
+            <h1 className="text-2xl font-semibold">{task.title}</h1>
+            <Button variant="ghost" onClick={() => navigate(-1)}><ArrowLeft className="h-4 w-4" /> Back</Button>
           </div>
-        </div>
-      </header>
 
-      <div className="container mx-auto px-6 py-4">
-        <Card className="bg-primary/10 border-primary/20">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <div className="bg-primary rounded-full p-2">
-                <Star className="h-4 w-4 text-primary-foreground" />
+          <Card>
+            <CardHeader>
+              <CardTitle>Task</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground mb-4">{task.description}</p>
+
+              {/* Here you can extend: upload area, form fields, checklists, etc. */}
+              <div className="space-y-2">
+                <p className="text-sm">Type: <strong>{task.type}</strong></p>
+                <Button onClick={() => markTaskComplete(task.id)} className="mt-4">Mark Task Complete</Button>
               </div>
-              <div>
-                <h3 className="font-semibold">Dr. Arya – Clinical Research Mentor</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  "This is your real-world task — give it your best like you're already on the job!"
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
+    );
+  }
 
-      <div className="container mx-auto p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Trial Scenario
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-semibold text-lg">Site #SITE001 – Phase 2 Lung Cancer Trial</h3>
-                  </div>
-                  
-                  <div className="space-y-3 text-sm">
-                    <p>
-                      Metro Medical Center has been identified as a potential site for a Phase 2 lung cancer trial. 
-                      The site needs comprehensive feasibility assessment including patient population analysis, 
-                      investigator qualifications, and infrastructure evaluation.
-                    </p>
-                    
-                    <div className="grid grid-cols-2 gap-2">
-                      <div><strong>Investigator:</strong> Dr. Sarah Johnson</div>
-                      <div><strong>Phase:</strong> Phase 2</div>
-                      <div><strong>Indication:</strong> Lung Cancer</div>
-                      <div><strong>Target:</strong> 25 patients</div>
-                      <div><strong>Site:</strong> Metro Medical Center</div>
-                      <div><strong>Country:</strong> United States</div>
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-3">
-                    <p className="text-sm font-medium text-primary">
-                      ➤ Action: Complete feasibility assessment and trial setup documentation.
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Overall Progress</span>
-                      <span>{completedTasks}/4</span>
-                    </div>
-                    <Progress value={(completedTasks / 4) * 100} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="lg:col-span-2 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Database className="h-5 w-5" />
-                  Site Feasibility Assessment Form
-                  {feasibilityFormSaved && <CheckCircle className="h-5 w-5 text-success" />}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Site ID</label>
-                    <Input value={siteData.siteId} disabled />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Investigator Name</label>
-                    <Input value={siteData.investigatorName} />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Site Name</label>
-                    <Input value={siteData.siteName} />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Patient Population</label>
-                    <Input value={siteData.patientPopulation} />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Trial Phase</label>
-                    <Select defaultValue={siteData.trialPhase}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Phase 1">Phase 1</SelectItem>
-                        <SelectItem value="Phase 2">Phase 2</SelectItem>
-                        <SelectItem value="Phase 3">Phase 3</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Indication</label>
-                    <Input value={siteData.indication} />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Country</label>
-                    <Input value={siteData.country} />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Enrollment Target</label>
-                    <Input value={siteData.enrollmentTarget} />
-                  </div>
-                </div>
-                <Button 
-                  onClick={handleSaveFeasibilityForm} 
-                  className="w-full mt-4"
-                  disabled={feasibilityFormSaved}
-                >
-                  {feasibilityFormSaved ? "✅ Feasibility Form Saved" : "Save Feasibility Form"}
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Code className="h-5 w-5" />
-                  Site Selection Criteria Evaluation
-                  {siteEvaluated && <CheckCircle className="h-5 w-5 text-success" />}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <Input placeholder="Search criteria (e.g., patient population)" />
-                  
-                  <div className="space-y-2">
-                    <h4 className="font-medium">Evaluation Criteria:</h4>
-                    {feasibilityCriteria.map((criteria, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 border rounded-lg">
-                        <div>
-                          <span className="font-medium">{criteria.criterion}</span>
-                          <Badge variant="outline" className="ml-2">{criteria.type}</Badge>
-                          <p className="text-xs text-muted-foreground">Code: {criteria.code}</p>
-                        </div>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => handleSelectCriteria(criteria.code, criteria.criterion)}
-                        >
-                          Select
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-
-                  {selectedCriteria.length > 0 && (
-                    <div className="space-y-2">
-                      <h4 className="font-medium">Selected Criteria:</h4>
-                      {selectedCriteria.map((criteria, index) => (
-                        <div key={index} className="p-2 bg-muted rounded text-sm">
-                          {criteria}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <Button 
-                    onClick={handleSubmitEvaluation} 
-                    className="w-full"
-                    disabled={selectedCriteria.length === 0 || siteEvaluated}
-                  >
-                    {siteEvaluated ? "✅ Evaluation Submitted" : "Submit Evaluation"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Trial Setup Checklist
-                  {checklistSubmitted && <CheckCircle className="h-5 w-5 text-success" />}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <Textarea 
-                    placeholder="Create a comprehensive checklist for setting up a Phase 2 Clinical Trial at Metro Medical Center..."
-                    rows={6}
-                    defaultValue=""
-                  />
-                  <div className="flex gap-2">
-                    <Button variant="outline" className="flex-1">
-                      💾 Save Draft
-                    </Button>
-                    <Button 
-                      onClick={handleSubmitChecklist} 
-                      className="flex-1"
-                      disabled={checklistSubmitted}
-                    >
-                      {checklistSubmitted ? "✅ Submitted" : "Submit Checklist"}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Upload className="h-5 w-5" />
-                  Site Selection Pitch
-                  {pitchUploaded && <CheckCircle className="h-5 w-5 text-success" />}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <Textarea 
-                    placeholder="Write a 100-word paragraph explaining why Metro Medical Center should be chosen for this multicenter trial..."
-                    rows={4}
-                  />
-                  <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                    <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">
-                      Upload supporting documents or drag and drop files here
-                    </p>
-                  </div>
-                  <Input placeholder="Additional notes for reviewer (optional)" />
-                  <Button 
-                    onClick={handleUploadPitch} 
-                    className="w-full"
-                    disabled={pitchUploaded}
-                  >
-                    {pitchUploaded ? "✅ Pitch Submitted" : "Submit Site Selection Pitch"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {allTasksCompleted && (
-              <Card className="bg-success/10 border-success/20">
-                <CardContent className="p-6 text-center">
-                  <CheckCircle className="h-12 w-12 text-success mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">All Clinical Research Tasks Completed!</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Excellent work! All feasibility assessment and trial setup tasks have been submitted and are awaiting mentor review.
-                  </p>
-                  <p className="text-lg font-medium mb-4">Total XP Earned: {xpEarned}</p>
-                  <Button onClick={handleCompleteShift} size="lg">
-                    Complete Simulation & Get Review
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+  // show task list for the course when no taskId provided
+  return (
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-4xl mx-auto space-y-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">Workspace — {courseId}</h1>
+          <Button variant="outline" onClick={() => navigate(`/learning/${encodeURIComponent(courseId)}`)}>Back to Course</Button>
         </div>
+
+        {tasks.length === 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>No tasks found</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">No tasks are available for this course.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          tasks.map((t) => (
+            <Card key={t.id} className="border-l-4 border-l-primary">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold">{t.title}</h3>
+                  <p className="text-sm text-muted-foreground">{t.description}</p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Button onClick={() => navigate(`/shift?courseId=${encodeURIComponent(courseId)}&taskId=${encodeURIComponent(t.id)}`)} size="sm">Open</Button>
+                  <Button onClick={() => markTaskComplete(t.id)} size="sm" variant="outline">Mark Complete</Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
     </div>
   );
-};
-
-export default ShiftMode;
+}

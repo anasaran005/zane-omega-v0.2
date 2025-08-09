@@ -32,7 +32,7 @@ const Dashboard = () => {
     { name: "Clinical Research", progress: 65, quiz: 80, status: "In Progress" },
     { name: "Clinical Data Management", progress: 0, quiz: 0, status: "Locked" },
     { name: "Regulatory Affairs", progress: 0, quiz: 0, status: "Locked" },
-    { name: "Quality Assurance", progress: 0, quiz: 0, status: "Locked" },
+    { name: "Quality Assurance", progress: 0, quiz: 0, status: "start" },
   ];
 
   const leaderboard = [
@@ -111,8 +111,37 @@ const Dashboard = () => {
   };
 
   const handleProgramClick = (program: any) => {
+    // Quality Assurance — special route
+    if (program.name === "Quality Assurance") {
+      if (program.status === "start" || program.status === "In Progress") {
+        navigate(`/course/qaqc-lesson1`); // now goes to course description
+      } else {
+        toast({
+          title: "Program Locked",
+          description: "Complete the previous program to unlock this one.",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+  
+    // Clinical Research
+    if (program.name === "Clinical Research") {
+      if (program.status === "In Progress") {
+        navigate(`/course/clinical-research`);
+      } else {
+        toast({
+          title: "Program Locked",
+          description: "Complete the previous program to unlock this one.",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+  
+    // Fallback for other programs
     if (program.status === "In Progress") {
-      navigate("/learning/clinical-research");
+      navigate(`/course/${program.id}`); // Use program.id from sheet
     } else {
       toast({
         title: "Program Locked",
@@ -121,6 +150,9 @@ const Dashboard = () => {
       });
     }
   };
+  
+  
+  
 
   const handleJoinSession = () => {
     toast({
