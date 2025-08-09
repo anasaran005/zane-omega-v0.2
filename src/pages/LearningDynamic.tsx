@@ -336,7 +336,7 @@ export default function LearningDynamic() {
             <p className="text-muted-foreground">{course.description}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate("/dashboard")}>
+            <Button variant="outline" onClick={() => navigate(`/course/${courseid}/chapters`)}>
               Back
             </Button>
           </div>
@@ -348,7 +348,8 @@ export default function LearningDynamic() {
         <div className="lg:col-span-3 space-y-6">
           <Card>
             <CardContent className="p-0">
-              <div className="aspect-w-16 aspect-h-9">
+              <div className="flex justify-center">
+              <div style={{ width: "960px", aspectRatio: "16/9" }}>
                 <iframe
                   src={lessons[currentVideo]?.videourl}
                   title={lessons[currentVideo]?.title}
@@ -356,6 +357,7 @@ export default function LearningDynamic() {
                   allowFullScreen
                   className="w-full h-full rounded-t-lg"
                 />
+              </div>
               </div>
               <div className="p-6">
                 <h2 className="text-xl font-semibold mb-2">{lessons[currentVideo]?.title}</h2>

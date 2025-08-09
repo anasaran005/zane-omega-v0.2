@@ -12,7 +12,7 @@ import NotFound from "./pages/NotFound";
 import QAQCLesson1 from "./pages/qaqclesson1";
 import LearningDynamic from "./pages/LearningDynamic";
 import CourseDescription from "./pages/CourseDescription";
-
+import ChaptersPage from "./pages/ChaptersPage";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -32,6 +32,7 @@ const App = () => (
           // or for static:
           <Route path="/learning/qaqc-lesson1" element={<LearningDynamic />} /> 
           <Route path="/course/:courseId" element={<CourseDescription />} />
+          <Route path="/course/:courseId/chapters" element={<ChaptersPage />} />
 
           {/* New course lesson route */}
           <Route path="/qaqclesson1" element={<QAQCLesson1 />} />

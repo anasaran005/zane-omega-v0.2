@@ -150,7 +150,7 @@ const CourseDescription: React.FC = () => {
 
       {/* Start Button */}
       <div className="flex justify-end">
-        <Button onClick={handleStartCourse} size="lg" className="mt-4">
+        <Button onClick={() => navigate(`/course/${courseId}/chapters`)}>
           Start Course
         </Button>
       </div>
